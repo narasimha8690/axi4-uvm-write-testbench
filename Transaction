@@ -1,0 +1,21 @@
+
+class axi_txn extends uvm_sequence_item;
+    rand bit [31:0] addr;
+    rand bit [7:0]  burst_len;
+    rand bit [31:0] data[];
+
+    `uvm_object_utils(axi_txn)
+
+    function new(string name = "axi_txn");
+        super.new(name);
+    endfunction
+
+    function void do_print(uvm_printer printer);
+        super.do_print(printer);
+        printer.print_field("addr", addr, 32);
+        printer.print_field("burst_len", burst_len, 8);
+        foreach (data[i])
+            printer.print_field($sformatf("data[%0d]", i), data[i], 32);
+    endfunction
+endclass
+
