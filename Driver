@@ -1,0 +1,51 @@
+
+class axi_driver extends uvm_driver#(axi_txn);
+    virtual axi_if vif;
+
+    `uvm_component_utils(axi_driver)
+
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
+    endfunction
+
+    function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        if (!uvm_config_db#(virtual axi_if)::get(this, "", "vif", vif))
+            `uvm_fatal("NOVIF", "Virtual interface not set")
+    endfunction
+
+    task run_phase(uvm_phase phase);
+        axi_txn tx;
+        forever begin
+            seq_item_port.get_next_item(tx);
+            @(posedge vif.ACLK);
+            vif.AWVALID <= 1;
+            vif.AWADDR  <= tx.addr;
+            vif.AWLEN   <= tx.burst_len - 1;
+            vif.AWSIZE  <= 3'b010;
+            vif.AWBURST <= 2'b01;
+            do @(posedge vif.ACLK); while (!vif.AWREADY);
+            vif.AWVALID <= 0;
+
+            for (int i = 0; i < tx.burst_len; i++) begin
+                @(posedge vif.ACLK);
+                vif.WVALID <= 1;
+                vif.WDATA  <= tx.data[i];
+                vif.WSTRB  <= 4'hF;
+                vif.WLAST  <= (i == tx.burst_len - 1);
+                do @(posedge vif.ACLK); while (!vif.WREADY);
+            end
+            vif.WVALID <= 0;
+            vif.WLAST  <= 0;
+
+            do @(posedge vif.ACLK); while (!vif.BVALID);
+            vif.BREADY <= 1;
+            @(posedge vif.ACLK);
+            vif.BREADY <= 0;
+
+            seq_item_port.item_done();
+        end
+    endtask
+endclass
+
+
